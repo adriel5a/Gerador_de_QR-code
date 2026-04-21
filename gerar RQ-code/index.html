@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pix QR</title>
+
+  <!-- Biblioteca QRCode -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #13131a;
+      padding: 30px;
+      border-radius: 12px;
+      width: 350px;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background: #00e5a0;
+      cursor: pointer;
+    }
+
+    #qrcode {
+      margin-top: 20px;
+      background: #fff;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Gerador Pix QR</h2>
+
+  <input type="text" id="key" placeholder="Digite a chave Pix">
+  <button onclick="generate()">Gerar</button>
+
+  <div id="qrcode"></div>
+</div>
+
+<script>
+
+// =========================
+// UTILIDADES
+// =========================
+
+function onlyDigits(str) {
+  return str.replace(/\D/g, '');
+}
+
+function tlv(id, value) {
+  return id + String(value.length).padStart(2, '0') + value;
+}
+
+// =========================
+// CRC16
+// =========================
+
+function crc16(str) {
+  let crc = 0xFFFF;
+
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+    }
+  }
+
+  return ((crc & 0xFFFF) >>> 0)
+    .toString(16)
+    .toUpperCase()
+    .padStart(4, '0');
+}
+
+// =========================
+// GERAR PAYLOAD PIX
+// =========================
+
+function buildPayload(key) {
+  const pixKey = tlv('00', 'BR.GOV.BCB.PIX') + tlv('01', key);
+
+  const payload =
+    tlv('00', '01') +
+    tlv('26', pixKey) +
+    tlv('52', '0000') +
+    tlv('53', '986') +
+    tlv('58', 'BR') +
+    tlv('59', 'Recebedor') +
+    tlv('60', 'Brasil') +
+    tlv('62', tlv('05', '***')) +
+    '6304';
+
+  return payload + crc16(payload);
+}
+
+// =========================
+// GERAR QR CODE
+// =========================
+
+function generate() {
+  const keyInput = document.getElementById('key');
+  const key = keyInput.value.trim();
+
+  if (!key) {
+    alert('Digite uma chave Pix');
+    return;
+  }
+
+  const payload = buildPayload(key);
+
+  const qrDiv = document.getElementById('qrcode');
+  qrDiv.innerHTML = '';
+
+  new QRCode(qrDiv, {
+    text: payload,
+    width: 200,
+    height: 200
+  });
+}
+
+</script>
+
+</body>
+</html>
